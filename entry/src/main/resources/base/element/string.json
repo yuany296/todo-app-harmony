@@ -1,0 +1,36 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "module description"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "label"
+    },
+    {
+      "name": "todo_tab",
+      "value": "待办"
+    },
+    {
+      "name": "timer_tab",
+      "value": "专注"
+    },
+    {
+      "name": "stats_tab",
+      "value": "统计"
+    },
+    {
+      "name": "todo_title",
+      "value": "待办事项"
+    },
+    {
+      "name": "focus_time",
+      "value": "专注计时"
+    }
+  ]
+}

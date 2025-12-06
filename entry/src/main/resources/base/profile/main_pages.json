@@ -1,0 +1,8 @@
+{
+  "src": [
+    "pages/AddTodo",
+    "pages/FocusTimerPage",
+    "pages/StatisticsPage",
+    "pages/Index"
+  ]
+}
