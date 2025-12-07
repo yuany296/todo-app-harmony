@@ -142,7 +142,7 @@ export struct EditModal {
                     return;
                   }
                   // month - 1: DatePickerResult.month 是 1-12，Date 构造函数中的 month 是 0-11
-                  const selected = new Date(value.year, value.month - 1, value.day);
+                  const selected = new Date(value.year, value.month , value.day);
                   this.selectedDate = selected;
                   this.deadline = this.formatDate(selected);
                 },

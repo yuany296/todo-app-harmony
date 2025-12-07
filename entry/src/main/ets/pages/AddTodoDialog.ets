@@ -44,7 +44,7 @@ export struct AddTodoDialog {
     }
     const date = new Date(dateStr);
     const year = date.getFullYear();
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const month = (date.getMonth()+1).toString().padStart(2, '0');
     const day = date.getDate().toString().padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
@@ -132,8 +132,7 @@ export struct AddTodoDialog {
                   if (value.year === undefined || value.month === undefined || value.day === undefined) {
                     return;
                   }
-                  // month - 1: 因为 Date 对象中月份是从 0 开始的
-                  const selected = new Date(value.year, value.month - 1, value.day);
+                  const selected = new Date(value.year, value.month , value.day);
                   this.selectedDate = selected;
                   this.deadline = this.formatDate(selected); // 更新 ISO 格式截止时间
                 },
@@ -205,7 +204,6 @@ export struct AddTodoDialog {
         offsetY: 6
       })
 
-      // 已删除自定义日期选择器弹窗 UI
 
     }
   }
