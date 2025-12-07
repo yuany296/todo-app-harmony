@@ -1,6 +1,13 @@
 // Component/EditModal.ets
 import { TodoItem } from '../Types/ToDoItem';
 
+// 步骤 1: 添加 DatePickerResult 接口定义
+interface DatePickerResult {
+  year?: number;
+  month?: number;
+  day?: number;
+}
+
 @CustomDialog
 export struct EditModal {
   private controller: CustomDialogController;
@@ -8,7 +15,7 @@ export struct EditModal {
   @State todoName: string = '';
   @State deadline: string = '';
   @State selectedDate: Date = new Date();
-  @State showDatePicker: boolean = false;
+  // 步骤 2: 删除 @State showDatePicker: boolean = false;
   onCancel: () => void = () => {
   };
   onSave: (updatedItem: TodoItem) => void = () => {
@@ -56,12 +63,25 @@ export struct EditModal {
   build() {
     Stack() {
       Column() {
-        // 标题
-        Text('编辑待办事项')
-          .fontSize(20)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#333333')
-          .margin({ bottom: 20 })
+        // 弹窗头部
+        Row() {
+          Text('修改待办')
+            .fontSize(20)
+            .fontWeight(FontWeight.Bold)
+            .fontColor('#1A1A1A')
+
+          Blank()
+
+          Image($r('app.media.false'))
+            .width(20)
+            .height(20)
+            .onClick(() => {
+              this.controller?.close();
+              this.onCancel();
+            })
+        }
+        .width('100%')
+        .padding({ top: 24, left: 24, right: 24 })
 
         // 输入区域
         Column({ space: 16 }) {
@@ -76,9 +96,10 @@ export struct EditModal {
             TextInput({ placeholder: '请输入待办名称...', text: this.todoName })
               .width('100%')
               .height(48)
-              .backgroundColor('#F1F3F5')
+              .backgroundColor('#F7F7F7')
+              .border({ width: 1, color: '#E8E8E8' })
               .borderRadius(8)
-              .padding({ left: 12, right: 12 })
+              .padding(12)
               .fontSize(16)
               .onChange((value: string) => {
                 this.todoName = value;
@@ -106,43 +127,59 @@ export struct EditModal {
             }
             .width('100%')
             .height(48)
-            .backgroundColor('#F1F3F5')
+            .backgroundColor('#F7F7F7')
+            .border({ width: 1, color: '#E8E8E8' })
             .borderRadius(8)
             .padding({ left: 12, right: 12 })
+            // 步骤 3: 修改 onClick 为调用 DatePickerDialog
             .onClick(() => {
-              this.showDatePicker = true;
+              DatePickerDialog.show({
+                start: new Date(), // 从今天开始
+                end: new Date('2100-12-31'),
+                selected: this.selectedDate,
+                onAccept: (value: DatePickerResult) => {
+                  if (value.year === undefined || value.month === undefined || value.day === undefined) {
+                    return;
+                  }
+                  // month - 1: DatePickerResult.month 是 1-12，Date 构造函数中的 month 是 0-11
+                  const selected = new Date(value.year, value.month - 1, value.day);
+                  this.selectedDate = selected;
+                  this.deadline = this.formatDate(selected);
+                },
+                onCancel: () => {
+                  console.log('用户取消了日期选择');
+                }
+              });
             })
           }
         }
         .width('100%')
-        .margin({ bottom: 30 })
+        .padding({ top: 24, left: 24, right: 24 })
 
         // 按钮区域
-        Row({ space: 16 }) {
+        Row({ space: 12 }) {
           // 取消按钮
-          Button('取消')
+          Button('取消', { type: ButtonType.Normal })
             .layoutWeight(1)
             .height(40)
-            .backgroundColor('#E8E8E8')
-            .fontColor('#333333')
+            .backgroundColor('#F0F0F0')
+            .fontColor('#666666')
             .borderRadius(20)
             .onClick(() => {
-              this.controller.close();
-              if (this.onCancel) {
-                this.onCancel();
-              }
+              this.controller?.close();
+              this.onCancel();
             })
 
-          // 确认保存按钮
-          Button('保存')
+          // 确认按钮
+          Button('保存', { type: ButtonType.Normal })
             .layoutWeight(1)
             .height(40)
-            .backgroundColor('#1A73E8')
-            .fontColor(Color.White)
+            .backgroundColor(this.todoName.trim() && this.deadline ? '#1A73E8' : '#CCCCCC')
+            .fontColor('#FFFFFF')
             .borderRadius(20)
-            .enabled(this.todoName.trim().length > 0 && this.deadline.length > 0)
+            .enabled(!!this.todoName.trim() && !!this.deadline)
             .onClick(() => {
-              if (this.todoItem && this.onSave) {
+              if (this.onSave && this.todoItem && this.todoName.trim() && this.deadline) {
                 const updatedItem: TodoItem = {
                   id: this.todoItem.id,
                   name: this.todoName.trim(),
@@ -150,94 +187,33 @@ export struct EditModal {
                   total_time: this.todoItem.total_time,
                   isFinished: this.todoItem.isFinished
                 };
-                console.log('EditModal save clicked, updatedItem:', updatedItem.id, updatedItem.name);
                 this.onSave(updatedItem);
-                this.controller.close();
+                this.controller?.close();
               }
             })
         }
         .width('100%')
+        .padding({
+          top: 32,
+          bottom: 24,
+          left: 24,
+          right: 24
+        })
+        .justifyContent(FlexAlign.Center)
       }
-      .width(300)
-      .padding(24)
-      .backgroundColor(Color.White)
-      .borderRadius(12)
+      .width('85%')
+      .backgroundColor('#FFFFFF')
+      .borderRadius(16)
+      .shadow({
+        radius: 12,
+        color: '#00000040',
+        offsetX: 0,
+        offsetY: 6
+      })
 
-      // 日期选择器弹窗
-      if (this.showDatePicker) {
-        Column() {
-          // 半透明背景
-          Column() {
-            Blank()
-          }
-          .width('100%')
-          .height('100%')
-          .backgroundColor('#000000')
-          .opacity(0.3)
-          .onClick(() => {
-            this.showDatePicker = false;
-          })
+      // 步骤 4: 删除自定义日期选择器 UI 逻辑
+      // if (this.showDatePicker) { ... } 块已删除
 
-          // 日期选择器内容
-          Column() {
-            // 标题栏
-            Row() {
-              Text('选择截止日期')
-                .fontSize(18)
-                .fontWeight(FontWeight.Bold)
-                .fontColor('#333333')
-                .layoutWeight(1)
-
-              Button('取消')
-                .fontSize(16)
-                .fontColor('#666666')
-                .backgroundColor(Color.Transparent)
-                .onClick(() => {
-                  this.showDatePicker = false;
-                })
-
-              Blank()
-                .width(8)
-
-              Button('确定')
-                .fontSize(16)
-                .fontColor('#1A73E8')
-                .backgroundColor(Color.Transparent)
-                .onClick(() => {
-                  this.showDatePicker = false;
-                })
-            }
-            .width('100%')
-            .padding({ top: 16, bottom: 16, left: 20, right: 20 })
-
-            DatePicker({
-              start: new Date(), // 从今天开始
-              end: new Date('2100-12-31'),
-              selected: this.selectedDate
-            })
-              .onChange((value: DatePickerResult) => {
-                if (value.year === undefined || value.month === undefined || value.day === undefined) {
-                  return;
-                }
-                const selected = new Date(value.year, value.month - 1, value.day);
-                this.selectedDate = selected;
-                this.deadline = this.formatDate(selected);
-              })
-          }
-          .width('90%')
-          .backgroundColor('#FFFFFF')
-          .borderRadius(16)
-          .shadow({
-            radius: 24,
-            color: '#00000040',
-            offsetX: 0,
-            offsetY: 8
-          })
-          .position({ x: '5%', y: '20%' })
-        }
-        .width('100%')
-        .height('100%')
-      }
     }
   }
 }

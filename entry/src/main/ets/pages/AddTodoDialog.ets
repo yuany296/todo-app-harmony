@@ -1,13 +1,19 @@
 // Component/AddTodoDialog.ets
 import { TodoItem } from '../Types/ToDoItem';
 
+interface DatePickerResult {
+  year?: number;
+  month?: number;
+  day?: number;
+}
+
 @CustomDialog
 export struct AddTodoDialog {
   private controller?: CustomDialogController;
   @State todoName: string = '';
   @State deadline: string = '';
   @State selectedDate: Date = new Date();
-  @State showDatePicker: boolean = false;
+  // 已删除 @State showDatePicker: boolean = false;
   private onConfirm?: (item: TodoItem) => void;
   private onCancel?: () => void;
 
@@ -117,7 +123,25 @@ export struct AddTodoDialog {
             .borderRadius(8)
             .padding({ left: 12, right: 12 })
             .onClick(() => {
-              this.showDatePicker = true;
+              // 触发系统日期选择弹窗
+              DatePickerDialog.show({
+                start: new Date(), // 从今天开始
+                end: new Date('2100-12-31'),
+                selected: this.selectedDate,
+                onAccept: (value: DatePickerResult) => {
+                  if (value.year === undefined || value.month === undefined || value.day === undefined) {
+                    return;
+                  }
+                  // month - 1: 因为 Date 对象中月份是从 0 开始的
+                  const selected = new Date(value.year, value.month - 1, value.day);
+                  this.selectedDate = selected;
+                  this.deadline = this.formatDate(selected); // 更新 ISO 格式截止时间
+                },
+                onCancel: () => {
+                  // 用户取消时的逻辑
+                  console.log('User cancelled date selection.');
+                }
+              });
             })
           }
         }
@@ -181,81 +205,8 @@ export struct AddTodoDialog {
         offsetY: 6
       })
 
-      // 日期选择器弹窗
-      if (this.showDatePicker) {
-        Column() {
-          // 半透明背景
-          Column() {
-            Blank()
-          }
-          .width('100%')
-          .height('100%')
-          .backgroundColor('#000000')
-          .opacity(0.3)
-          .onClick(() => {
-            this.showDatePicker = false;
-          })
+      // 已删除自定义日期选择器弹窗 UI
 
-          // 日期选择器内容
-          Column() {
-            // 标题栏
-            Row() {
-              Text('选择截止日期')
-                .fontSize(18)
-                .fontWeight(FontWeight.Bold)
-                .fontColor('#333333')
-                .layoutWeight(1)
-
-              Button('取消')
-                .fontSize(16)
-                .fontColor('#666666')
-                .backgroundColor(Color.Transparent)
-                .onClick(() => {
-                  this.showDatePicker = false;
-                })
-
-              Blank()
-                .width(8)
-
-              Button('确定')
-                .fontSize(16)
-                .fontColor('#1A73E8')
-                .backgroundColor(Color.Transparent)
-                .onClick(() => {
-                  this.showDatePicker = false;
-                })
-            }
-            .width('100%')
-            .padding({ top: 16, bottom: 16, left: 20, right: 20 })
-
-            DatePicker({
-              start: new Date(), // 从今天开始
-              end: new Date('2100-12-31'),
-              selected: this.selectedDate
-            })
-              .onChange((value: DatePickerResult) => {
-                if (value.year === undefined || value.month === undefined || value.day === undefined) {
-                  return;
-                }
-                const selected = new Date(value.year, value.month - 1, value.day);
-                this.selectedDate = selected;
-                this.deadline = this.formatDate(selected);
-              })
-          }
-          .width('90%')
-          .backgroundColor('#FFFFFF')
-          .borderRadius(16)
-          .shadow({
-            radius: 24,
-            color: '#00000040',
-            offsetX: 0,
-            offsetY: 8
-          })
-          .position({ x: '5%', y: '20%' })
-        }
-        .width('100%')
-        .height('100%')
-      }
     }
   }
 }
