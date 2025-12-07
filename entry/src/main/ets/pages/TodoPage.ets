@@ -49,57 +49,57 @@ export struct TodoPage {
             (item: TodoItem, index: number) => {
               ListItem() {
                 Row({ space: 16 }) {
-                    // 左侧：完成状态图标（点击切换状态）
-                    Image(this.getFinishIcon(item.isFinished))
-                      .width(24)
-                      .height(24)
-                      .objectFit(ImageFit.Contain)
+                  // 左侧：完成状态图标（点击切换状态）
+                  Image(this.getFinishIcon(item.isFinished))
+                    .width(24)
+                    .height(24)
+                    .objectFit(ImageFit.Contain)
+                    .onClick(() => {
+                      console.log('点击切换状态:', item.id);
+                      this.toggleFinishStatus(item.id);
+                    })
+
+                  // 中间：待办文本和截止时间（点击编辑）
+                  Column({ space: 4 }) {
+                    Text(item.name)
+                      .fontSize(18)
+                      .fontWeight(FontWeight.Medium)
+                      .fontColor(this.getTextColor(item))
+                      .decoration({
+                        type: item.isFinished ?
+                          TextDecorationType.LineThrough :
+                          TextDecorationType.None,
+                        color: '#FF6B6B'
+                      })
+                      .maxLines(1)
+                      .textOverflow({ overflow: TextOverflow.Ellipsis })
                       .onClick(() => {
-                        console.log('点击切换状态:', item.id);
-                        this.toggleFinishStatus(item.id);
+                        this.editTodo(item.id);
                       })
 
-                    // 中间：待办文本和截止时间（点击编辑）
-                    Column({ space: 4 }) {
-                      Text(item.name)
-                        .fontSize(18)
-                        .fontWeight(FontWeight.Medium)
-                        .fontColor(this.getTextColor(item))
-                        .decoration({
-                          type: item.isFinished ?
-                            TextDecorationType.LineThrough :
-                            TextDecorationType.None,
-                          color: '#FF6B6B'
-                        })
-                        .maxLines(1)
-                        .textOverflow({ overflow: TextOverflow.Ellipsis })
-                        .onClick(() => {
-                          this.editTodo(item.id);
-                        })
-
-                      // 截止时间
-                      Text(this.formatDeadline(item.deadline))
-                        .fontSize(12)
-                        .fontColor('#999999')
-                        .maxLines(1)
-                        .textOverflow({ overflow: TextOverflow.Ellipsis })
-                        .onClick(() => {
-                          this.editTodo(item.id);
-                        })
-                    }
-                    .alignItems(HorizontalAlign.Start)
-                    .layoutWeight(1)
-
-                    // 右侧：删除图标（点击删除）
-                    Image($r('app.media.delete'))
-                      .width(20)
-                      .height(20)
-                      .opacity(0.6)
+                    // 截止时间
+                    Text(this.formatDeadline(item.deadline))
+                      .fontSize(12)
+                      .fontColor('#999999')
+                      .maxLines(1)
+                      .textOverflow({ overflow: TextOverflow.Ellipsis })
                       .onClick(() => {
-                        this.deleteTodo(item.id);
+                        this.editTodo(item.id);
                       })
                   }
-                  .width('100%')
+                  .alignItems(HorizontalAlign.Start)
+                  .layoutWeight(1)
+
+                  // 右侧：删除图标（点击删除）
+                  Image($r('app.media.delete'))
+                    .width(20)
+                    .height(20)
+                    .opacity(0.6)
+                    .onClick(() => {
+                      this.deleteTodo(item.id);
+                    })
+                }
+                .width('100%')
                 .padding({
                   left: 24,
                   right: 24,
@@ -116,7 +116,7 @@ export struct TodoPage {
                 })
               }
             },
-            (item: TodoItem, index: number) => `${item.id}_${item.isFinished}_${this.refreshKey}`
+            (item: TodoItem, index: number) => `${item.id}_${item.isFinished}_${item.name}_${item.deadline}_${this.refreshKey}` // 添加 name 和 deadline 到 key 中
           )
         }
         .width('100%')
@@ -225,13 +225,16 @@ export struct TodoPage {
       const newList = this.planList.slice();
       newList[index] = updatedItem;
       this.planList = [...newList];
+
+      // 🌟 关键修改点：强制刷新列表，更新 refreshKey
+      this.refreshKey = Date.now();
     }
-    
+
     // 如果有回调，通知父组件（保持兼容性）
     if (this.onUpdate) {
       this.onUpdate(updatedItem);
     }
-    
+
     this.closeEditModal();
   }
 
@@ -276,12 +279,15 @@ export struct TodoPage {
     // 直接更新 @Link 绑定的数组
     const newList = this.planList.filter(item => item.id !== id);
     this.planList = [...newList];
-    
+
+    // 🌟 关键修改点：强制刷新列表，更新 refreshKey
+    this.refreshKey = Date.now();
+
     // 如果有回调，通知父组件（保持兼容性）
     if (this.onDelete) {
       this.onDelete(id);
     }
-    
+
     console.log('删除完成，剩余:', this.planList.length, '条');
   }
 
@@ -331,5 +337,7 @@ export struct TodoPage {
   // 添加待办
   private addTodo(item: TodoItem): void {
     this.planList = this.planList.concat([item]);
+    // 🌟 关键修改点：强制刷新列表，更新 refreshKey
+    this.refreshKey = Date.now();
   }
 }
