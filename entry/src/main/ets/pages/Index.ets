@@ -13,10 +13,10 @@ struct MainTabPage {
   private tabsController: TabsController = new TabsController();
   // 待办事项列表
   @State planList: TodoItem[] = [
-    { id: 1, name: '单机完成', deadline: new Date(Date.now() + 86400000).toISOString(), total_time: 0, isFinished: false },
-    { id: 2, name: '双击设置', deadline: new Date(Date.now() + 172800000).toISOString(), total_time: 0, isFinished: false },
-    { id: 3, name: '添加更多功能', deadline: new Date(Date.now() + 259200000).toISOString(), total_time: 0, isFinished: true },
-    { id: 4, name: '优化界面设计', deadline: new Date(Date.now() + 345600000).toISOString(), total_time: 0, isFinished: false }
+    { id: 1, name: '练字', deadline: new Date(Date.now() + 86400000).toISOString(), total_time: 0, isFinished: false },
+    { id: 2, name: '写作业', deadline: new Date(Date.now() + 172800000).toISOString(), total_time: 0, isFinished: false },
+    { id: 3, name: '读书', deadline: new Date(Date.now() + 259200000).toISOString(), total_time: 0, isFinished: true },
+    { id: 4, name: '学习', deadline: new Date(Date.now() + 345600000).toISOString(), total_time: 0, isFinished: false }
   ];
   // 弹窗控制状态
   @State isAddDialogVisible: boolean = false;
