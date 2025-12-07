@@ -29,6 +29,46 @@ export struct TodoPage {
     console.log('TodoPage aboutToUpdate, planList length:', this.planList.length);
   }
 
+  // 🌟 新增：获取排序后的待办事项列表
+  private getSortedTodos(): TodoItem[] {
+    if (!this.planList || this.planList.length === 0) {
+      return [];
+    }
+
+    // 创建数组副本进行排序
+    const todos = [...this.planList];
+
+    return todos.sort((a: TodoItem, b: TodoItem) => {
+      // 1. 首先按完成状态排序：未完成的在前，已完成的在后
+      if (a.isFinished && !b.isFinished) {
+        return 1; // a已完成，b未完成，b应该在前
+      }
+      if (!a.isFinished && b.isFinished) {
+        return -1; // a未完成，b已完成，a应该在前
+      }
+
+      // 2. 如果都是未完成，按截止日期排序：截止日期越早的越靠前
+      if (!a.isFinished && !b.isFinished) {
+        try {
+          const dateA = new Date(a.deadline);
+          const dateB = new Date(b.deadline);
+          // 比较日期（只比较年月日，忽略时间）
+          dateA.setHours(0, 0, 0, 0);
+          dateB.setHours(0, 0, 0, 0);
+
+          return dateA.getTime() - dateB.getTime(); // 升序排列
+        } catch (e) {
+          console.error('日期解析错误:', e);
+          return 0;
+        }
+      }
+
+      // 3. 如果都是已完成，按原来的顺序（或按完成时间排序）
+      // 这里保持原来的顺序，或者你可以添加按完成时间排序的逻辑
+      return 0;
+    });
+  }
+
   build() {
     Column() {
       // 标题
@@ -41,11 +81,28 @@ export struct TodoPage {
       .width('100%')
       .padding({ top: 20, bottom: 20, left: 24 })
       .backgroundColor('#FFFFFF')
+
+      // 🌟 修改：显示未完成和已完成的统计
+      Row() {
+        Text(`未完成: ${this.planList.filter(item => !item.isFinished).length}个`)
+          .fontSize(14)
+          .fontColor('#52C41A')
+          .margin({ right: 20 })
+
+        Text(`已完成: ${this.planList.filter(item => item.isFinished).length}个`)
+          .fontSize(14)
+          .fontColor('#999999')
+      }
+      .width('100%')
+      .padding({ left: 24, right: 24, bottom: 12 })
+      .backgroundColor('#FFFFFF')
+
       // 列表
       Scroll() {
         List({ space: 12 }) {
+          // 🌟 修改：使用排序后的列表
           ForEach(
-            this.planList,
+            this.getSortedTodos(),
             (item: TodoItem, index: number) => {
               ListItem() {
                 Row({ space: 16 }) {
@@ -116,7 +173,9 @@ export struct TodoPage {
                 })
               }
             },
-            (item: TodoItem, index: number) => `${item.id}_${item.isFinished}_${item.name}_${item.deadline}_${this.refreshKey}` // 添加 name 和 deadline 到 key 中
+            // 🌟 修改：key 中包含排序相关的字段
+            (item: TodoItem,
+              index: number) => `${item.id}_${item.isFinished}_${item.deadline}_${item.name}_${this.refreshKey}`
           )
         }
         .width('100%')
@@ -300,7 +359,9 @@ export struct TodoPage {
 
   // 格式化截止时间显示
   private formatDeadline(deadline: string): string {
-    if (!deadline) return '';
+    if (!deadline) {
+      return '';
+    }
     try {
       const date = new Date(deadline);
       const year = date.getFullYear();
@@ -314,7 +375,9 @@ export struct TodoPage {
 
   // 判断是否逾期
   private isOverdue(item: TodoItem): boolean {
-    if (item.isFinished) return false;
+    if (item.isFinished) {
+      return false;
+    }
     try {
       const deadline = new Date(item.deadline);
       const now = new Date();
@@ -329,8 +392,12 @@ export struct TodoPage {
 
   // 获取文字颜色（逾期显示红色）
   private getTextColor(item: TodoItem): string {
-    if (item.isFinished) return '#999999';
-    if (this.isOverdue(item)) return '#FF4757'; // 逾期显示红色
+    if (item.isFinished) {
+      return '#999999';
+    }
+    if (this.isOverdue(item)) {
+      return '#FF4757';
+    } // 逾期显示红色
     return '#333333';
   }
 

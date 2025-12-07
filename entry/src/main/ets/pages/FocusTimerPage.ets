@@ -493,11 +493,6 @@ export struct FocusTimerPage {
             .margin({ bottom: 8 })
 
           Row() {
-            Image(this.currentTask?.isFinished ? $r('app.media.finished') : $r('app.media.unfinish'))
-              .width(20)
-              .height(20)
-              .margin({ right: 12 })
-              .visibility(this.currentTask ? Visibility.Visible : Visibility.Hidden)
 
             Text(this.currentTask ? this.currentTask.name : '无任务')
               .fontSize(20)
@@ -511,8 +506,8 @@ export struct FocusTimerPage {
               .textOverflow({ overflow: TextOverflow.Ellipsis })
 
             Image($r('app.media.ic_dropdown'))
-              .width(16)
-              .height(16)
+              .width(36)
+              .height(36)
               .margin({ left: 8 })
           }
           .onClick(() => {
