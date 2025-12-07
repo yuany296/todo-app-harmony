@@ -11,6 +11,7 @@ interface StatisticsData {
 @Component
 export struct StatisticsPage {
   @Link planList: TodoItem[];
+  @State refreshKey: number = 0;
 
   // 计算统计数据
   private getStatistics(): StatisticsData {
@@ -47,7 +48,9 @@ export struct StatisticsPage {
 
   // 格式化截止时间显示
   private formatDeadline(deadline: string): string {
-    if (!deadline) return '';
+    if (!deadline) {
+      return '';
+    }
     try {
       const date = new Date(deadline);
       const year = date.getFullYear();
@@ -72,6 +75,10 @@ export struct StatisticsPage {
     return sorted;
   }
 
+  private getMedalIcon(index: number): string {
+    return (index + 1).toString();
+  }
+
   build() {
     Column() {
       // 标题
@@ -82,7 +89,7 @@ export struct StatisticsPage {
           .fontColor('#1A1A1A')
       }
       .width('100%')
-      .padding({ top: 20, bottom: 20, left: 24 })
+      .padding({ top: 60, bottom: 20, left: 24 })
       .backgroundColor('#FFFFFF')
 
       // 统计卡片
@@ -244,77 +251,109 @@ export struct StatisticsPage {
           })
           .margin({ left: 16, right: 16 })
 
-          // 任务计时列表
+          // 任务计时排行榜
           Column() {
-            Text('任务计时')
-              .fontSize(18)
-              .fontWeight(FontWeight.Bold)
-              .fontColor('#333333')
-              .margin({ bottom: 16 })
+            Row() {
+              Text('计时排行榜')
+                .fontSize(18)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#333333')
+                .layoutWeight(1)
+
+              Text('TOP 10')
+                .fontSize(12)
+                .fontColor('#999999')
+                .padding({
+                  left: 8,
+                  right: 8,
+                  top: 4,
+                  bottom: 4
+                })
+                .backgroundColor('#F5F5F5')
+                .borderRadius(10)
+            }
+            .width('100%')
+            .margin({ bottom: 16 })
 
             if (this.planList.length > 0) {
               Column({ space: 12 }) {
+                // 显示前10个或更少的任务
                 ForEach(
-                  this.getSortedTasks(),
+                  this.getSortedTasks().slice(0, 10),
                   (item: TodoItem, index: number) => {
                     Row({ space: 12 }) {
-                      // 任务名称
-                      Column({ space: 4 }) {
+                      // 排名和奖牌
+                      Column() {
+                        Text((index + 1).toString())
+                          .fontSize(16)
+                          .fontWeight(FontWeight.Medium)
+                          .fontColor('#999999')
+                      }
+                      .width(32)
+                      .height(32)
+                      .justifyContent(FlexAlign.Center)
+                      .alignItems(HorizontalAlign.Center)
+
+                      // 任务信息 - 使用 Row 而不是 Column
+                      Row({ space: 8 }) {
+                        // 任务名称
                         Text(item.name)
                           .fontSize(16)
                           .fontWeight(FontWeight.Medium)
-                          .fontColor(item.isFinished ? '#999999' : '#333333')
-                          .decoration({
-                            type: item.isFinished ?
-                              TextDecorationType.LineThrough :
-                              TextDecorationType.None,
-                            color: '#FF6B6B'
-                          })
                           .maxLines(1)
                           .textOverflow({ overflow: TextOverflow.Ellipsis })
+                          .layoutWeight(1)
 
                         // 截止时间
                         Text(this.formatDeadline(item.deadline))
                           .fontSize(12)
                           .fontColor('#999999')
                           .maxLines(1)
-                          .textOverflow({ overflow: TextOverflow.Ellipsis })
-                      }
-                      .alignItems(HorizontalAlign.Start)
-                      .layoutWeight(1)
+                          .textOverflow({ overflow: TextOverflow.Ellipsis })// 计时时间
 
-                      // 计时时间
-                      Column({ space: 4 }) {
                         Text(this.formatTime(item.total_time))
-                          .fontSize(16)
+                          .fontSize(14)
                           .fontWeight(FontWeight.Bold)
                           .fontColor('#409EFF')
-                          .textAlign(TextAlign.End)
-
-                        Text('计时')
-                          .fontSize(12)
-                          .fontColor('#999999')
-                          .textAlign(TextAlign.End)
+                          .margin({ left: 8 })
                       }
-                      .alignItems(HorizontalAlign.End)
+                      .layoutWeight(1)
                     }
                     .width('100%')
-                    .padding({ top: 12, bottom: 12, left: 16, right: 16 })
+                    .padding({
+                      top: 12,
+                      bottom: 12,
+                      left: 12,
+                      right: 12
+                    })
                     .backgroundColor('#F8F9FA')
-                    .borderRadius(8)
-                  },
-                  (item: TodoItem, index: number) => `${item.id}_${item.isFinished}_${item.total_time}`
+                    .borderRadius(12)
+                    .alignItems(VerticalAlign.Center) // 让 Row 内所有元素垂直居中
+                  }
                 )
               }
             } else {
+              // 空状态
               Column() {
+                Image($r('app.media.empty'))
+                  .width(80)
+                  .height(80)
+                  .margin({ bottom: 16 })
+                  .opacity(0.5)
+
                 Text('暂无任务')
-                  .fontSize(14)
+                  .fontSize(16)
+                  .fontColor('#999999')
+                  .margin({ bottom: 8 })
+
+                Text('快去添加待办事项开始计时吧')
+                  .fontSize(12)
                   .fontColor('#999999')
               }
               .width('100%')
-              .padding({ top: 20, bottom: 20 })
+              .padding({ top: 40, bottom: 40 })
               .justifyContent(FlexAlign.Center)
+              .alignItems(HorizontalAlign.Center)
             }
           }
           .width('100%')
@@ -323,11 +362,11 @@ export struct StatisticsPage {
           .borderRadius(16)
           .shadow({
             radius: 8,
-            color: '#00000010',
+            color: '#00000020',
             offsetX: 0,
             offsetY: 2
           })
-          .margin({ left: 16, right: 16, bottom: 16 })
+          .margin({ left: 16, right: 16, bottom: 20 })
         }
       }
       .width('100%')
