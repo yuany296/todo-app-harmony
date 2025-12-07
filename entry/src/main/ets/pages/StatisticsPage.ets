@@ -82,7 +82,7 @@ export struct StatisticsPage {
           .fontColor('#1A1A1A')
       }
       .width('100%')
-      .padding({ top: 60, bottom: 20, left: 24 })
+      .padding({ top: 20, bottom: 20, left: 24 })
       .backgroundColor('#FFFFFF')
 
       // 统计卡片
