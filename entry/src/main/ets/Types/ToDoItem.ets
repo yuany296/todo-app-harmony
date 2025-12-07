@@ -1,9 +1,10 @@
 // Types/ToDoItem.ts
 export interface TodoItem {
   id: number; // 唯一ID
-  plan: string; // 待办内容
+  name: string; // 待办名称
+  deadline: string; // 截止时间（ISO格式字符串）
+  total_time: number; // 总计时长（秒）
   isFinished: boolean; // 是否完成
-  createTime?: string; // 创建时间（可选）
 }
 
 export interface RouterParams {

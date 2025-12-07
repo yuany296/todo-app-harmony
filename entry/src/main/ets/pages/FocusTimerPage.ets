@@ -1,7 +1,9 @@
 // src/main/ets/pages/FocusTimerPage.ets
 import { TimerItem } from '../Types/TimerItem';
 import { TodoItem } from '../Types/ToDoItem';
+import { AddTodoDialog } from './AddTodoDialog';
 import promptAction from '@ohos.promptAction';
+import { deviceInfo } from '@kit.BasicServicesKit';
 
 interface TimePickerResult {
   hour: number;
@@ -18,15 +20,14 @@ export struct FocusTimerPage {
   @Link planList: TodoItem[]; // 接收待办事项列表
   @State currentTask: TodoItem | null = null; // 当前选中的待办事项
   @State timeLeft: number = 1500; // 当前剩余时间（秒）
+  @State initialTime: number = 1500; // 初始时间（秒）
   @State isRunning: boolean = false;
   @State isPaused: boolean = false;
   @State timerProgress: number = 0; // 进度百分比
   @State showTaskPicker: boolean = false;
   @State showAddTodoDialog: boolean = false; // 添加待办弹窗
-
   // 计时器ID
   private timerId: number = 0;
-
   // 计时历史记录
   @State timerHistory: TimerItem[] = [];
 
@@ -40,6 +41,13 @@ export struct FocusTimerPage {
         this.currentTask = this.planList[0]; // 如果没有未完成的，选中第一个
       }
       this.timeLeft = 1500; // 默认25分钟
+    }
+    // 如果定时器还在运行，说明是从其他页面返回，需要清理
+    if (this.timerId) {
+      clearInterval(this.timerId);
+      this.timerId = 0;
+      this.isRunning = false;
+      this.isPaused = false;
     }
   }
 
@@ -59,19 +67,43 @@ export struct FocusTimerPage {
 
   // 开始计时器
   private startTimer(): void {
-    if (this.isRunning || !this.currentTask) return;
+    if (this.isRunning || !this.currentTask) {
+      return;
+    }
+
+    // 确保清理之前的定时器
+    if (this.timerId) {
+      clearInterval(this.timerId);
+      this.timerId = 0;
+    }
 
     this.isRunning = true;
     this.isPaused = false;
+    // 记录初始时间
+    this.initialTime = this.timeLeft;
 
-    this.timerId = setInterval(() => {
+    const timerIdRef = setInterval(() => {
+      // 检查是否还在运行状态，防止状态不一致
+      if (!this.isRunning) {
+        clearInterval(timerIdRef);
+        this.timerId = 0;
+        return;
+      }
+
       if (this.timeLeft > 0) {
         this.timeLeft -= 1;
         this.timerProgress = this.calculateProgress();
       } else {
+        // 时间到了，立即清理定时器并处理完成
+        clearInterval(timerIdRef);
+        this.timerId = 0;
+        // 先设置状态，防止定时器继续运行
+        this.isRunning = false;
+        this.isPaused = false;
         this.handleTimerFinish();
       }
     }, 1000);
+    this.timerId = timerIdRef;
   }
 
   // 暂停计时器
@@ -85,12 +117,64 @@ export struct FocusTimerPage {
   // 继续计时器
   private resumeTimer(): void {
     if (this.isRunning && this.isPaused) {
-      this.startTimer();
+      // 确保清理之前的定时器
+      if (this.timerId) {
+        clearInterval(this.timerId);
+        this.timerId = 0;
+      }
+
+      this.isPaused = false;
+      // 重新启动定时器
+      const timerIdRef = setInterval(() => {
+        // 检查是否还在运行状态，防止状态不一致
+        if (!this.isRunning) {
+          clearInterval(timerIdRef);
+          this.timerId = 0;
+          return;
+        }
+
+        if (this.timeLeft > 0) {
+          this.timeLeft -= 1;
+          this.timerProgress = this.calculateProgress();
+        } else {
+          // 时间到了，立即清理定时器并处理完成
+          clearInterval(timerIdRef);
+          this.timerId = 0;
+          // 先设置状态，防止定时器继续运行
+          this.isRunning = false;
+          this.isPaused = false;
+          this.handleTimerFinish();
+        }
+      }, 1000);
+      this.timerId = timerIdRef;
     }
   }
 
   // 停止计时器
-  private stopTimer(): void {
+  private stopTimer(saveTime: boolean = true): void {
+    // 如果正在运行且需要保存时间，记录已用时间
+    if (saveTime && this.isRunning && this.currentTask) {
+      const elapsedTime = this.initialTime - this.timeLeft;
+      if (elapsedTime > 0) {
+        // 更新待办的total_time
+        const taskId = this.currentTask.id;
+        const newList = this.planList.map((item: TodoItem): TodoItem => {
+          if (item.id === taskId) {
+            return {
+              id: item.id,
+              name: item.name,
+              deadline: item.deadline,
+              total_time: item.total_time + elapsedTime,
+              isFinished: item.isFinished
+            };
+          }
+          return item;
+        });
+        this.planList = [...newList];
+      }
+    }
+
+    // 清理定时器
     if (this.timerId) {
       clearInterval(this.timerId);
       this.timerId = 0;
@@ -103,11 +187,17 @@ export struct FocusTimerPage {
 
   // 选择待办事项作为任务
   private selectTodoAsTask(todo: TodoItem): void {
+    // 切换任务时，先保存当前任务的计时时间
+    if (this.currentTask && this.isRunning) {
+      this.stopTimer(true); // 保存时间
+    } else {
+      this.stopTimer(false); // 不保存时间，只是重置
+    }
     this.currentTask = todo;
-    this.stopTimer(); // 切换任务时重置计时器
     this.timeLeft = 1500; // 重置为默认25分钟
     this.showTaskPicker = false;
   }
+
   // 自定义时间
   private showTimePicker(): void {
     // 简化处理：直接设置固定时间
@@ -117,35 +207,68 @@ export struct FocusTimerPage {
     const totalSeconds = (hours * 3600) + (minutes * 60);
 
     if (totalSeconds > 0) {
+      // 设置新时间前，先保存当前计时时间
+      if (this.isRunning && this.currentTask) {
+        this.stopTimer(true); // 保存时间
+      } else {
+        this.stopTimer(false); // 不保存，只是重置
+      }
       this.timeLeft = totalSeconds;
-      this.stopTimer();
     }
   }
 
   // 计时结束处理
   private handleTimerFinish(): void {
-    this.stopTimer();
+    // 确保定时器已完全停止（在定时器回调中已经清理，这里再次确认）
+    if (this.timerId) {
+      clearInterval(this.timerId);
+      this.timerId = 0;
+    }
+
+    // 确保状态已停止（在定时器回调中已经设置，这里再次确认）
+    this.isRunning = false;
+    this.isPaused = false;
+
+    // 计算已用时间（此时timeLeft应该是0或接近0）
+    const elapsedTime = this.initialTime;
+
+    // 重置时间（必须在清理定时器后设置）
+    this.timeLeft = 1500; // 重置为默认25分钟
+    this.timerProgress = 0;
 
     // 记录完成历史
     if (this.currentTask) {
       const finishedTimer: TimerItem = {
         id: Date.now(),
-        taskName: this.currentTask.plan,
-        duration: 1500, // 默认25分钟
+        taskName: this.currentTask.name,
+        duration: elapsedTime,
         endTime: new Date().toISOString(),
         completed: true
       };
 
       this.timerHistory = [finishedTimer, ...this.timerHistory];
 
+      // 更新待办的total_time
+      const taskId = this.currentTask.id;
+      const newList = this.planList.map((item: TodoItem): TodoItem => {
+        if (item.id === taskId) {
+          return {
+            id: item.id,
+            name: item.name,
+            deadline: item.deadline,
+            total_time: item.total_time + elapsedTime,
+            isFinished: item.isFinished
+          };
+        }
+        return item;
+      });
+      this.planList = [...newList];
+
       // 显示完成提示
       promptAction.showToast({
-        message: `任务 "${this.currentTask.plan}" 已完成！`,
+        message: `任务 "${this.currentTask.name}" 已完成！`,
         duration: 3000
       });
-
-      // 标记待办为已完成（可选功能）
-      // this.markTodoAsFinished(this.currentTask.id);
     }
   }
 
@@ -155,9 +278,10 @@ export struct FocusTimerPage {
       if (item.id === id) {
         return {
           id: item.id,
-          plan: item.plan,
-          isFinished: true,
-          createTime: item.createTime
+          name: item.name,
+          deadline: item.deadline,
+          total_time: item.total_time,
+          isFinished: true
         };
       }
       return item;
@@ -173,27 +297,12 @@ export struct FocusTimerPage {
   }
 
   // 添加待办事项
-  private addTodoToList(planText: string): void {
-    if (!planText.trim()) {
-      return;
-    }
-
-    let maxId = 0;
-    if (this.planList && this.planList.length > 0) {
-      maxId = this.planList.reduce((max, item) => item.id > max ? item.id : max, 0);
-    }
-
-    const newTodo: TodoItem = {
-      id: maxId + 1,
-      plan: planText,
-      isFinished: false
-    };
-
+  private addTodoToList(item: TodoItem): void {
     // 更新待办列表
-    this.planList = [...this.planList, newTodo];
+    this.planList = [...this.planList, item];
 
     // 自动选中新添加的待办
-    this.currentTask = newTodo;
+    this.currentTask = item;
     this.showAddTodoDialog = false;
 
     promptAction.showToast({
@@ -268,7 +377,7 @@ export struct FocusTimerPage {
                     .objectFit(ImageFit.Contain)
 
                   Column() {
-                    Text(todo.plan)
+                    Text(todo.name)
                       .fontSize(16)
                       .fontWeight(FontWeight.Medium)
                       .fontColor(todo.isFinished ? '#999999' : '#333333')
@@ -299,7 +408,12 @@ export struct FocusTimerPage {
                   }
                 }
                 .width('100%')
-                .padding({ left: 20, right: 20, top: 12, bottom: 12 })
+                .padding({
+                  left: 20,
+                  right: 20,
+                  top: 12,
+                  bottom: 12
+                })
                 .backgroundColor('#FFFFFF')
                 .borderRadius(12)
                 .onClick(() => {
@@ -391,133 +505,6 @@ export struct FocusTimerPage {
     }
   }
 
-  // 添加待办弹窗（复用你的AddTodoDialog）
-  @Builder
-  private AddTodoDialog() {
-    Stack() {
-      // 半透明背景
-      Column() {
-        Blank()
-      }
-      .width('100%')
-      .height('100%')
-      .backgroundColor('#000000')
-      .opacity(0.3)
-      .onClick(() => {
-        this.showAddTodoDialog = false;
-      })
-
-      // 弹窗内容
-      Column() {
-        // 弹窗头部
-        Row() {
-          Text('添加待办')
-            .fontSize(20)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#1A1A1A')
-
-          Blank()
-
-          Image($r('app.media.false'))
-            .width(20)
-            .height(20)
-            .onClick(() => {
-              this.showAddTodoDialog = false;
-            })
-        }
-        .width('100%')
-        .padding({ top: 24, left: 24, right: 24 })
-
-        // 输入区域
-        Column({ space: 8 }) {
-          Text('待办内容')
-            .fontSize(14)
-            .fontColor('#666666')
-            .width('100%')
-            .textAlign(TextAlign.Start)
-
-          TextInput({ placeholder: '请输入待办事项...', text: '' })
-            .width('100%')
-            .height(100)
-            .backgroundColor('#FFFFFF')
-            .border({ width: 1, color: '#E8E8E8' })
-            .borderRadius(8)
-            .padding(12)
-            .fontSize(16)
-            .onChange((value: string) => {
-              // 这里需要创建一个临时状态来存储输入值
-              // 为了简化，我们在确认按钮中直接弹出系统对话来获取输入
-            })
-            .maxLength(100)
-            .id('todoInput')
-        }
-        .width('100%')
-        .padding({ top: 24, left: 24, right: 24 })
-
-        // 按钮区域
-        Row({ space: 12 }) {
-          // 取消按钮
-          Button('取消', { type: ButtonType.Normal })
-            .width('40%')
-            .height(40)
-            .backgroundColor('#FFFFFF')
-            .fontColor('#666666')
-            .border({ width: 1, color: '#E8E8E8' })
-            .borderRadius(20)
-            .onClick(() => {
-              this.showAddTodoDialog = false;
-            })
-
-          // 确认按钮
-          Button('确认', { type: ButtonType.Normal })
-            .width('40%')
-            .height(40)
-            .backgroundColor('#409EFF')
-            .fontColor('#FFFFFF')
-            .borderRadius(20)
-            .onClick(() => {
-              // 由于 ArkTS 的 UI 文本输入获取在此处较复杂，保留使用系统 prompt 的方式
-              promptAction.showDialog({
-                title: '输入待办内容',
-                message: '请输入待办事项：',
-                buttons: [
-                  {
-                    text: '取消',
-                    color: '#666666'
-                  },
-                  {
-                    text: '确认',
-                    color: '#409EFF'
-                  }
-                ]
-              }).then((result: PromptResult) => {
-                if (result.index === 1) {
-                  const planText = result.message?.trim() || '';
-                  if (planText) {
-                    this.addTodoToList(planText);
-                  }
-                }
-                this.showAddTodoDialog = false;
-              });
-            })
-        }
-        .width('100%')
-        .padding({ top: 32, bottom: 24 })
-        .justifyContent(FlexAlign.Center)
-      }
-      .width('80%')
-      .backgroundColor('#FFFFFF')
-      .borderRadius(16)
-      .shadow({
-        radius: 24,
-        color: '#00000040',
-        offsetX: 0,
-        offsetY: 8
-      })
-      .position({ x: '10%', y: '30%' })
-    }
-  }
-
   build() {
     // 统一使用一个根节点 Stack，将主界面和弹窗按层放置
     Stack() {
@@ -540,7 +527,7 @@ export struct FocusTimerPage {
                 .height(20)
                 .margin({ right: 12 })
 
-              Text(this.currentTask.plan)
+              Text(this.currentTask.name)
                 .fontSize(20)
                 .fontWeight(FontWeight.Bold)
                 .fontColor(this.currentTask.isFinished ? '#999999' : '#1A1A1A')
@@ -579,7 +566,12 @@ export struct FocusTimerPage {
           }
         }
         .width('100%')
-        .padding({ left: 24, right: 24, top: 12, bottom: 12 })
+        .padding({
+          left: 24,
+          right: 24,
+          top: 12,
+          bottom: 12
+        })
         .backgroundColor('#FFFFFF')
         .borderRadius(20)
         .shadow({
@@ -624,12 +616,14 @@ export struct FocusTimerPage {
           }
           .margin({ bottom: 40 })
 
-          // 时间设置提示
-          Text('点击设置自定义时间')
+          // 时间设置提示（用 Button 替代 Text 以确保可点击性）
+          Button('点击设置自定义时间', { type: ButtonType.Normal })
             .fontSize(14)
             .fontColor('#1890FF')
+            .backgroundColor(Color.Transparent)
             .margin({ bottom: 40 })
             .onClick(() => {
+              console.log('showTimePicker invoked from UI');
               this.showTimePicker();
             })
         }
@@ -638,6 +632,14 @@ export struct FocusTimerPage {
 
         // 底部：控制按钮区域
         Column() {
+          // 状态提示（放在按钮上方）
+          if (this.isRunning) {
+            Text(this.isPaused ? '已暂停' : '专注中...')
+              .fontSize(14)
+              .fontColor(this.isPaused ? '#FA8C16' : '#52C41A')
+              .margin({ bottom: 20 })
+          }
+
           if (!this.isRunning) {
             // 开始按钮
             Button('开始专注', { type: ButtonType.Capsule })
@@ -682,13 +684,6 @@ export struct FocusTimerPage {
         .alignItems(HorizontalAlign.Center)
         .margin({ top: 40 })
 
-        // 状态提示
-        if (this.isRunning) {
-          Text(this.isPaused ? '已暂停' : '专注中...')
-            .fontSize(14)
-            .fontColor(this.isPaused ? '#FA8C16' : '#52C41A')
-            .margin({ top: 20 })
-        }
 
         // 完成次数统计
         if (this.timerHistory.length > 0) {
@@ -718,6 +713,7 @@ export struct FocusTimerPage {
       .width('100%')
       .height('100%')
       .backgroundColor('#F8F8F8')
+      .padding({ bottom: 50 })
 
       // 弹窗层（条件渲染，仍属于 Stack 的子节点 —— 因此 build() 只有一个根）
       if (this.showTaskPicker) {
@@ -725,7 +721,14 @@ export struct FocusTimerPage {
       }
 
       if (this.showAddTodoDialog) {
-        this.AddTodoDialog()
+        AddTodoDialog({
+          onConfirm: (item: TodoItem) => {
+            this.addTodoToList(item);
+          },
+          onCancel: () => {
+            this.showAddTodoDialog = false;
+          }
+        })
       }
     }
   }
@@ -733,6 +736,18 @@ export struct FocusTimerPage {
   aboutToDisappear() {
     // 页面消失时清理定时器
     if (this.timerId) {
+      clearInterval(this.timerId);
+      this.timerId = 0;
+    }
+    // 重置状态
+    this.isRunning = false;
+    this.isPaused = false;
+  }
+
+  aboutToUpdate() {
+    // 当状态更新时，确保定时器状态正确
+    // 如果isRunning为false但定时器还在运行，清理它
+    if (!this.isRunning && this.timerId) {
       clearInterval(this.timerId);
       this.timerId = 0;
     }
