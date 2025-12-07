@@ -429,7 +429,7 @@ export struct FocusTimerPage {
           .margin({ top: 20 })
         } else {
           Column() {
-            Image($r('app.media.add'))
+            Image($r('app.media.empty'))
               .width(60)
               .height(60)
               .margin({ bottom: 20 })
