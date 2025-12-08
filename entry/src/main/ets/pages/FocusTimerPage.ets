@@ -373,36 +373,36 @@ export struct FocusTimerPage {
         if (this.getUnfinishedTodos().length > 0) {
           Scroll() {
             Column({ space: 12 }) {
-              Row({ space: 16 }) {
-                Text('无任务（自定义时间）')
-                  .fontSize(16)
-                  .fontWeight(FontWeight.Medium)
-                  .fontColor(this.currentTask === null ? '#409EFF' : '#333333')
-                  .layoutWeight(1)
-
-                if (this.currentTask === null) {
-                  Image($r('app.media.finished'))
-                    .width(20)
-                    .height(20)
-                    .objectFit(ImageFit.Contain)
-                }
-              }
-              .width('100%')
-              .padding({
-                left: 20,
-                right: 20,
-                top: 12,
-                bottom: 12
-              })
-              .backgroundColor('#FFFFFF')
-              .borderRadius(12)
-              .onClick(() => {
-                if (this.isRunning || this.isPaused) {
-                  this.stopTimer(true);
-                }
-                this.currentTask = null;
-                this.showTaskPicker = false;
-              })
+              // Row({ space: 16 }) {
+              //   Text('无任务（自定义时间）')
+              //     .fontSize(16)
+              //     .fontWeight(FontWeight.Medium)
+              //     .fontColor(this.currentTask === null ? '#409EFF' : '#333333')
+              //     .layoutWeight(1)
+              //
+              //   if (this.currentTask === null) {
+              //     Image($r('app.media.finished'))
+              //       .width(20)
+              //       .height(20)
+              //       .objectFit(ImageFit.Contain)
+              //   }
+              // }
+              // .width('100%')
+              // .padding({
+              //   left: 20,
+              //   right: 20,
+              //   top: 12,
+              //   bottom: 12
+              // })
+              // .backgroundColor('#FFFFFF')
+              // .borderRadius(12)
+              // .onClick(() => {
+              //   if (this.isRunning || this.isPaused) {
+              //     this.stopTimer(true);
+              //   }
+              //   this.currentTask = null;
+              //   this.showTaskPicker = false;
+              // })
 
               ForEach(this.getUnfinishedTodos(), (todo: TodoItem) => {
                 Row({ space: 16 }) {
