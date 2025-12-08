@@ -5,6 +5,7 @@ import { FocusTimerPage } from './FocusTimerPage';
 import { StatisticsPage } from './StatisticsPage';
 import { TodoItem } from '../Types/ToDoItem';
 import { AddTodoDialog } from './AddTodoDialog'; // 引入弹窗组件
+import { savePlanList, loadPlanList } from '../common/PreferenceHelper';
 
 @Entry
 @Component
@@ -13,10 +14,34 @@ struct MainTabPage {
   private tabsController: TabsController = new TabsController();
   // 待办事项列表
   @State planList: TodoItem[] = [
-    { id: 1, name: '练字', deadline: new Date(Date.now() + 86400000).toISOString(), total_time: 0, isFinished: false },
-    { id: 2, name: '写作业', deadline: new Date(Date.now() + 172800000).toISOString(), total_time: 0, isFinished: false },
-    { id: 3, name: '读书', deadline: new Date(Date.now() + 259200000).toISOString(), total_time: 0, isFinished: true },
-    { id: 4, name: '学习', deadline: new Date(Date.now() + 345600000).toISOString(), total_time: 0, isFinished: false }
+    {
+      id: 1,
+      name: '练字',
+      deadline: new Date(Date.now() + 86400000).toISOString(),
+      total_time: 0,
+      isFinished: false
+    },
+    {
+      id: 2,
+      name: '写作业',
+      deadline: new Date(Date.now() + 172800000).toISOString(),
+      total_time: 0,
+      isFinished: false
+    },
+    {
+      id: 3,
+      name: '读书',
+      deadline: new Date(Date.now() + 259200000).toISOString(),
+      total_time: 0,
+      isFinished: true
+    },
+    {
+      id: 4,
+      name: '学习',
+      deadline: new Date(Date.now() + 345600000).toISOString(),
+      total_time: 0,
+      isFinished: false
+    }
   ];
   // 弹窗控制状态
   @State isAddDialogVisible: boolean = false;
@@ -46,6 +71,8 @@ struct MainTabPage {
   private addTodoToList(item: TodoItem): void {
     // 更新状态，触发 UI 刷新
     this.planList = [...this.planList, item];
+    // 保存到偏好存储
+    savePlanList(this.planList);
     console.log('添加成功，当前列表长度:', this.planList.length);
   }
 
@@ -57,6 +84,8 @@ struct MainTabPage {
       const newList = this.planList.slice();
       newList[idx] = updatedItem;
       this.planList = newList;
+      // 保存修改
+      savePlanList(this.planList);
     }
   }
 
@@ -64,6 +93,7 @@ struct MainTabPage {
   private handleDeleteFromChild(id: number): void {
     console.log('handleDeleteFromChild called for id:', id);
     this.planList = this.planList.filter(item => item.id !== id);
+    savePlanList(this.planList);
   }
 
   // 来自子组件的完成切换回调
@@ -86,7 +116,20 @@ struct MainTabPage {
         return item;
       });
       this.planList = [...newList];
+      savePlanList(this.planList);
     }
+  }
+
+  aboutToAppear() {
+    // 尝试从偏好加载已保存的待办列表（若存在）
+    loadPlanList().then((list) => {
+      if (list && Array.isArray(list) && list.length > 0) {
+        this.planList = list as TodoItem[];
+        console.log('Loaded planList from preferences, length=', this.planList.length);
+      }
+    }).catch((e: Error) => {
+      console.warn('Failed to load preferences planList', e);
+    });
   }
 
   // 打开添加弹窗
