@@ -1,5 +1,5 @@
 import { TodoItem } from '../Types/ToDoItem';
-import { getTimerStats, TimerStats } from '../common/PreferenceHelper';
+import { getTimerStats, TimerStats, subscribeTimerHistory } from '../common/PreferenceHelper';
 
 interface StatisticsData {
   total: number;
@@ -20,6 +20,7 @@ export struct StatisticsPage {
   @Link planList: TodoItem[];
   @State refreshKey: number = 0;
   @State timerStats: TimerStats | null = null;
+  private timerUnsubscribe?: () => void;
 
   // 计算统计数据
   private getStatistics(): StatisticsData {
@@ -53,6 +54,23 @@ export struct StatisticsPage {
     }).catch((err: Error) => {
       console.error('getTimerStats error:', err);
     });
+
+    // 订阅计时历史变化，实时刷新统计
+    this.timerUnsubscribe = subscribeTimerHistory(() => {
+      getTimerStats().then(stats => {
+        this.timerStats = stats;
+        this.refreshKey = Date.now();
+      }).catch((err: Error) => {
+        console.error('getTimerStats error (on notify):', err);
+      });
+    });
+  }
+
+  aboutToDisappear() {
+    if (this.timerUnsubscribe) {
+      try { this.timerUnsubscribe(); } catch (e) { console.error('unsubscribe error:', e); }
+      this.timerUnsubscribe = undefined;
+    }
   }
 
   // 格式化时间显示

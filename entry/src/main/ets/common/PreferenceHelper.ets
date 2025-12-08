@@ -10,6 +10,15 @@ const KEY_TIMER_HISTORY = 'timerHistory';
 // 初始化Preferences实例
 let pref: preferences.Preferences | null = null;
 
+// 订阅者，当 timerHistory 变化时会被通知
+let timerHistorySubscribers: Array<() => void> = [];
+
+export function subscribeTimerHistory(cb: () => void): () => void {
+  timerHistorySubscribers.push(cb);
+  return () => {
+    timerHistorySubscribers = timerHistorySubscribers.filter(f => f !== cb);
+  };
+}
 async function initPreferences(): Promise<void> {
   if (!pref) {
     pref = await preferences.getPreferences(getContext(), PREF_NAME);
@@ -45,6 +54,14 @@ export async function saveTimerHistory(history: TimerItem[]): Promise<void> {
     await pref!.put(KEY_TIMER_HISTORY, JSON.stringify(history || []));
     await pref!.flush();
     console.info('Preferences: saved timerHistory');
+      // 通知订阅者
+      try {
+        timerHistorySubscribers.forEach(cb => {
+          try { cb(); } catch (e) { console.error('timerHistory subscriber error:', e); }
+        });
+      } catch (err) {
+        console.error('notify timerHistory subscribers error:', err);
+      }
   } catch (err) {
     console.error('saveTimerHistory error:', err);
   }
