@@ -1,6 +1,7 @@
 // src/main/ets/pages/FocusTimerPage.ets
 import { TimerItem } from '../Types/TimerItem';
 import { TodoItem } from '../Types/ToDoItem';
+import { addTimerItem, loadTimerHistory } from '../common/PreferenceHelper';
 import { AddTodoDialog } from './AddTodoDialog';
 import { CountdownPickerDialog } from './CustomTimePickerDialog';
 import promptAction from '@ohos.promptAction';
@@ -44,6 +45,12 @@ export struct FocusTimerPage {
 
     this.initialTime = this.selectedHour * 3600 + this.selectedMinute * 60 + this.selectedSecond;
     this.timeLeft = this.initialTime;
+    // 加载持久化的计时历史到页面状态
+    loadTimerHistory().then((history: TimerItem[]) => {
+      this.timerHistory = history || [];
+    }).catch((err: Error) => {
+      console.error('loadTimerHistory error:', err);
+    });
   }
 
   private handleTimeUpdate(h: number, m: number, s: number): void {
@@ -184,13 +191,17 @@ export struct FocusTimerPage {
         });
         this.planList = newList.slice();
 
-        this.timerHistory = [{
+        const record: TimerItem = {
           id: Date.now(),
           taskName: this.currentTask.name,
           duration: elapsedTime,
           endTime: new Date().toISOString(),
           completed: false
-        }, ...this.timerHistory];
+        };
+
+        this.timerHistory = [record, ...this.timerHistory];
+        // 异步持久化，不阻塞 UI
+        addTimerItem(record).catch((err: Error) => console.error('addTimerItem error:', err));
       }
     }
 
@@ -228,8 +239,8 @@ export struct FocusTimerPage {
         endTime: new Date().toISOString(),
         completed: true
       };
-
       this.timerHistory = [finishedTimer, ...this.timerHistory];
+      addTimerItem(finishedTimer).catch((err: Error) => console.error('addTimerItem error:', err));
       const taskId = this.currentTask.id;
       const newList = this.planList.map((item: TodoItem): TodoItem => {
         if (item.id === taskId) {
@@ -254,13 +265,15 @@ export struct FocusTimerPage {
         message: `专注计时完成！`,
         duration: 3000
       });
-      this.timerHistory = [{
+      const record: TimerItem = {
         id: Date.now(),
         taskName: '自定义专注',
         duration: elapsedTime,
         endTime: new Date().toISOString(),
         completed: true
-      }, ...this.timerHistory];
+      };
+      this.timerHistory = [record, ...this.timerHistory];
+      addTimerItem(record).catch((err: Error) => console.error('addTimerItem error:', err));
     }
   }
 

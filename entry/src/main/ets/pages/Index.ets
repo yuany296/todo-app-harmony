@@ -5,7 +5,7 @@ import { FocusTimerPage } from './FocusTimerPage';
 import { StatisticsPage } from './StatisticsPage';
 import { TodoItem } from '../Types/ToDoItem';
 import { AddTodoDialog } from './AddTodoDialog'; // 引入弹窗组件
-import { savePlanList, loadPlanList } from '../common/PreferenceHelper';
+import { savePlanListToFile, loadPlanListFromFile } from '../common/FileStorageHelper';
 
 @Entry
 @Component
@@ -71,8 +71,8 @@ struct MainTabPage {
   private addTodoToList(item: TodoItem): void {
     // 更新状态，触发 UI 刷新
     this.planList = [...this.planList, item];
-    // 保存到偏好存储
-    savePlanList(this.planList);
+    // 保存到文件存储
+    savePlanListToFile(this.planList).catch((err: Error) => console.error('savePlanListToFile error:', err));
     console.log('添加成功，当前列表长度:', this.planList.length);
   }
 
@@ -84,8 +84,8 @@ struct MainTabPage {
       const newList = this.planList.slice();
       newList[idx] = updatedItem;
       this.planList = newList;
-      // 保存修改
-      savePlanList(this.planList);
+      // 保存修改到文件
+      savePlanListToFile(this.planList).catch((err: Error) => console.error('savePlanListToFile error:', err));
     }
   }
 
@@ -93,7 +93,7 @@ struct MainTabPage {
   private handleDeleteFromChild(id: number): void {
     console.log('handleDeleteFromChild called for id:', id);
     this.planList = this.planList.filter(item => item.id !== id);
-    savePlanList(this.planList);
+    savePlanListToFile(this.planList).catch((err: Error) => console.error('savePlanListToFile error:', err));
   }
 
   // 来自子组件的完成切换回调
@@ -116,19 +116,19 @@ struct MainTabPage {
         return item;
       });
       this.planList = [...newList];
-      savePlanList(this.planList);
+      savePlanListToFile(this.planList).catch((err: Error) => console.error('savePlanListToFile error:', err));
     }
   }
 
   aboutToAppear() {
-    // 尝试从偏好加载已保存的待办列表（若存在）
-    loadPlanList().then((list) => {
+    // 尝试从文件加载已保存的待办列表（若存在）
+    loadPlanListFromFile().then((list) => {
       if (list && Array.isArray(list) && list.length > 0) {
         this.planList = list as TodoItem[];
-        console.log('Loaded planList from preferences, length=', this.planList.length);
+        console.log('Loaded planList from file, length=', this.planList.length);
       }
     }).catch((e: Error) => {
-      console.warn('Failed to load preferences planList', e);
+      console.warn('Failed to load file planList', e);
     });
   }
 

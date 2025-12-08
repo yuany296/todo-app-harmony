@@ -1,4 +1,5 @@
 import { TodoItem } from '../Types/ToDoItem';
+import { getTimerStats, TimerStats } from '../common/PreferenceHelper';
 
 interface StatisticsData {
   total: number;
@@ -8,10 +9,17 @@ interface StatisticsData {
   overdue: number;
 }
 
+interface TaskStat {
+  name: string;
+  count: number;
+  totalTime: number;
+}
+
 @Component
 export struct StatisticsPage {
   @Link planList: TodoItem[];
   @State refreshKey: number = 0;
+  @State timerStats: TimerStats | null = null;
 
   // 计算统计数据
   private getStatistics(): StatisticsData {
@@ -34,6 +42,17 @@ export struct StatisticsPage {
       totalTime,
       overdue
     };
+  }
+
+  aboutToAppear() {
+    // 从持久化中读取计时统计并更新状态
+    getTimerStats().then(stats => {
+      this.timerStats = stats;
+      // 触发界面刷新
+      this.refreshKey = Date.now();
+    }).catch((err: Error) => {
+      console.error('getTimerStats error:', err);
+    });
   }
 
   // 格式化时间显示
@@ -73,6 +92,21 @@ export struct StatisticsPage {
       return a.name.localeCompare(b.name);
     });
     return sorted;
+  }
+
+  // 从 timerStats 中提取并排序任务统计（用于排行榜）
+  private getTopTaskStats(): Array<TaskStat> {
+    if (!this.timerStats || !this.timerStats.taskStats) {
+      return [];
+    }
+    const arr: Array<TaskStat> = [];
+    const taskStats = this.timerStats.taskStats;
+    Object.keys(taskStats).forEach(key => {
+      const s = taskStats[key];
+      arr.push({ name: key, count: s.count, totalTime: s.totalTime });
+    });
+    arr.sort((a, b) => b.totalTime - a.totalTime);
+    return arr;
   }
 
   private getMedalIcon(index: number): string {
@@ -200,7 +234,7 @@ export struct StatisticsPage {
                 .fontColor('#666666')
                 .layoutWeight(1)
 
-              Text(this.formatTime(this.getStatistics().totalTime))
+              Text(this.formatTime(this.timerStats ? this.timerStats.totalTime : this.getStatistics().totalTime))
                 .fontSize(20)
                 .fontWeight(FontWeight.Bold)
                 .fontColor('#409EFF')
@@ -275,7 +309,51 @@ export struct StatisticsPage {
             .width('100%')
             .margin({ bottom: 16 })
 
-            if (this.planList.length > 0) {
+            // 如果有 timerStats，则优先使用计时统计生成排行榜
+            if (this.timerStats && this.timerStats.taskStats && Object.keys(this.timerStats.taskStats).length > 0) {
+              Column({ space: 12 }) {
+                ForEach(this.getTopTaskStats().slice(0, 10), (entry: TaskStat, index: number) => {
+                  Row({ space: 12 }) {
+                    Column() {
+                      Text((index + 1).toString())
+                        .fontSize(16)
+                        .fontWeight(FontWeight.Medium)
+                        .fontColor('#999999')
+                    }
+                    .width(32)
+                    .height(32)
+                    .justifyContent(FlexAlign.Center)
+                    .alignItems(HorizontalAlign.Center)
+
+                    Row({ space: 8 }) {
+                      Text(entry.name)
+                        .fontSize(16)
+                        .fontWeight(FontWeight.Medium)
+                        .maxLines(1)
+                        .textOverflow({ overflow: TextOverflow.Ellipsis })
+                        .layoutWeight(1)
+
+                      Text(this.formatTime(entry.totalTime))
+                        .fontSize(14)
+                        .fontWeight(FontWeight.Bold)
+                        .fontColor('#409EFF')
+                        .margin({ left: 8 })
+                    }
+                    .layoutWeight(1)
+                  }
+                  .width('100%')
+                  .padding({
+                    top: 12,
+                    bottom: 12,
+                    left: 12,
+                    right: 12
+                  })
+                  .backgroundColor('#F8F9FA')
+                  .borderRadius(12)
+                  .alignItems(VerticalAlign.Center)
+                })
+              }
+            } else if (this.planList.length > 0) {
               Column({ space: 12 }) {
                 // 显示前10个或更少的任务
                 ForEach(
@@ -309,7 +387,7 @@ export struct StatisticsPage {
                           .fontSize(12)
                           .fontColor('#999999')
                           .maxLines(1)
-                          .textOverflow({ overflow: TextOverflow.Ellipsis })// 计时时间
+                          .textOverflow({ overflow: TextOverflow.Ellipsis }) // 计时时间
 
                         Text(this.formatTime(item.total_time))
                           .fontSize(14)
